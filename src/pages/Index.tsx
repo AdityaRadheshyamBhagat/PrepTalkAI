@@ -186,10 +186,14 @@ const Index = () => {
           >
             Loved by <span className="gradient-text">Students</span>
           </motion.h2>
-          <MotionStagger className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {testimonials.map((t) => (
-              <MotionItem key={t.name}>
-                <MotionCard>
+          <div className="overflow-hidden">
+            <motion.div
+              className="flex gap-6"
+              animate={{ x: ["0%", "-50%"] }}
+              transition={{ x: { repeat: Infinity, repeatType: "loop", duration: 20, ease: "linear" } }}
+            >
+              {[...testimonials, ...testimonials].map((t, idx) => (
+                <div key={idx} className="min-w-[300px] md:min-w-[350px]">
                   <Card className="border-border/50 h-full">
                     <CardContent className="p-6">
                       <div className="flex gap-1 mb-3">
@@ -204,10 +208,10 @@ const Index = () => {
                       </div>
                     </CardContent>
                   </Card>
-                </MotionCard>
-              </MotionItem>
-            ))}
-          </MotionStagger>
+                </div>
+              ))}
+            </motion.div>
+          </div>
         </div>
       </section>
 
