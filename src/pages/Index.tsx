@@ -186,13 +186,9 @@ const Index = () => {
           >
             Loved by <span className="gradient-text">Students</span>
           </motion.h2>
-          <div className="overflow-hidden">
-            <motion.div
-              className="flex gap-6"
-              animate={{ x: ["0%", "-50%"] }}
-              transition={{ x: { repeat: Infinity, repeatType: "loop", duration: 20, ease: "linear" } }}
-            >
-              {[...testimonials, ...testimonials].map((t, idx) => (
+          <div className="overflow-hidden group/marquee">
+            <div className="flex gap-6 w-max animate-marquee group-hover/marquee:[animation-play-state:paused]">
+              {[...testimonials, ...testimonials, ...testimonials].map((t, idx) => (
                 <div key={idx} className="min-w-[300px] md:min-w-[350px]">
                   <Card className="border-border/50 h-full">
                     <CardContent className="p-6">
@@ -210,7 +206,7 @@ const Index = () => {
                   </Card>
                 </div>
               ))}
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
