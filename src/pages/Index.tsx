@@ -6,6 +6,13 @@ import { MotionCard, MotionButton, MotionStagger, MotionItem } from "@/component
 import { Mic, Users, BarChart3, Zap, ArrowRight, Star } from "lucide-react";
 import { motion } from "framer-motion";
 import heroIllustration from "@/assets/hero-illustration.png";
+import featureAiInterview from "@/assets/feature-ai-interview.png";
+import featureGroupDiscussion from "@/assets/feature-group-discussion.png";
+import featureAnalytics from "@/assets/feature-analytics.png";
+import featureFeedback from "@/assets/feature-feedback.png";
+import howItWorksImg from "@/assets/how-it-works.png";
+
+const featureImages = [featureAiInterview, featureGroupDiscussion, featureAnalytics, featureFeedback];
 
 const features = [
   { icon: Mic, title: "AI Mock Interviews", description: "Practice with AI-powered interviewers that adapt to your skill level and provide real-time feedback." },
@@ -110,14 +117,16 @@ const Index = () => {
             <p className="text-muted-foreground text-center mb-12 max-w-xl mx-auto">Comprehensive tools designed to transform your interview skills from good to exceptional.</p>
           </motion.div>
           <MotionStagger className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((f) => (
+            {features.map((f, i) => (
               <MotionItem key={f.title}>
                 <MotionCard>
                   <Card className="group hover:shadow-lg hover:shadow-primary/10 transition-shadow border-border/50 h-full">
                     <CardContent className="p-6">
-                      <div className="h-12 w-12 rounded-xl gradient-primary flex items-center justify-center mb-4">
-                        <f.icon className="h-6 w-6 text-primary-foreground" />
-                      </div>
+                      <img
+                        src={featureImages[i]}
+                        alt={f.title}
+                        className="w-full h-36 object-cover rounded-lg mb-4"
+                      />
                       <h3 className="font-semibold text-lg mb-2">{f.title}</h3>
                       <p className="text-sm text-muted-foreground">{f.description}</p>
                     </CardContent>
@@ -129,17 +138,29 @@ const Index = () => {
         </div>
       </section>
 
-      {/* How It Works */}
       <section className="py-20">
         <div className="container mx-auto px-4">
           <motion.h2
-            className="text-3xl md:text-4xl font-bold text-center mb-12"
+            className="text-3xl md:text-4xl font-bold text-center mb-4"
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
             How It <span className="gradient-text">Works</span>
           </motion.h2>
+          <motion.div
+            className="mb-12"
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+          >
+            <img
+              src={howItWorksImg}
+              alt="How PrepTalkAI works - 3 step process"
+              className="w-full max-w-3xl mx-auto rounded-2xl shadow-lg shadow-primary/10"
+            />
+          </motion.div>
           <MotionStagger className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             {steps.map((s) => (
               <MotionItem key={s.step}>
