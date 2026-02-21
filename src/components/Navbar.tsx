@@ -1,24 +1,41 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Brain, ArrowUpRight } from "lucide-react";
+import { useCallback } from "react";
 
 const navLinks = [
-  { label: "Home", to: "/" },
-  { label: "Features", to: "/#features" },
-  { label: "Pricing", to: "/#pricing" },
-  { label: "About", to: "/#about" },
+  { label: "Home", to: "/", section: null },
+  { label: "Features", to: "/#features", section: "features" },
+  { label: "Pricing", to: "/#pricing", section: "pricing" },
+  { label: "About", to: "/about", section: null },
 ];
 
 const Navbar = () => {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+
+  const handleNavClick = useCallback(
+    (e: React.MouseEvent, to: string, section: string | null) => {
+      if (section) {
+        e.preventDefault();
+        if (pathname === "/") {
+          document.getElementById(section)?.scrollIntoView({ behavior: "smooth" });
+        } else {
+          navigate("/");
+          setTimeout(() => {
+            document.getElementById(section)?.scrollIntoView({ behavior: "smooth" });
+          }, 400);
+        }
+      }
+    },
+    [pathname, navigate]
+  );
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center px-8 mt-5">
-      {/* Single unified pill */}
       <div
         className="flex items-center justify-between rounded-full border border-white/10 bg-white/5 backdrop-blur-xl px-4 py-2 shadow-lg shadow-black/20 w-full"
         style={{ maxWidth: "1200px" }}
       >
-        {/* Left: Logo + nav links */}
         <div className="flex items-center gap-1">
           <Link
             to="/"
@@ -28,17 +45,16 @@ const Navbar = () => {
             <span className="gradient-text">PrepTalkAI</span>
           </Link>
 
-          {/* Divider */}
           <div className="h-5 w-px bg-white/10 mx-2" />
 
-          {/* Nav links */}
-          {navLinks.map(({ label, to }) => {
+          {navLinks.map(({ label, to, section }) => {
             const isActive =
-              pathname === to || (to === "/" && pathname === "/");
+              to === "/about" ? pathname === "/about" : pathname === to || (to === "/" && pathname === "/");
             return (
               <Link
                 key={label}
                 to={to}
+                onClick={(e) => handleNavClick(e, to, section)}
                 className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-base font-medium transition-all duration-200 ${
                   isActive
                     ? "bg-white/10 text-white"
@@ -54,7 +70,6 @@ const Navbar = () => {
           })}
         </div>
 
-        {/* Right: Login + Get started */}
         <div className="flex items-center gap-2 shrink-0">
           <Link
             to="/login"

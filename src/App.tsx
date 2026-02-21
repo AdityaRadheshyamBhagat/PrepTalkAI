@@ -11,6 +11,7 @@ import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Interview from "./pages/Interview";
 import Discussion from "./pages/Discussion";
+import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const AnimatedRoutes = () => {
         <Route path="/dashboard" element={<PageTransition><Dashboard /></PageTransition>} />
         <Route path="/interview" element={<PageTransition><Interview /></PageTransition>} />
         <Route path="/discussion" element={<PageTransition><Discussion /></PageTransition>} />
+        <Route path="/about" element={<PageTransition><About /></PageTransition>} />
         <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
       </Routes>
     </AnimatePresence>
