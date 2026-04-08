@@ -1,7 +1,16 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Brain, ArrowUpRight, LogOut } from "lucide-react";
+import { Brain, ArrowUpRight, LogOut, User } from "lucide-react";
 import { useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const navLinks = [
   { label: "Home", to: "/", section: null },
@@ -53,6 +62,11 @@ const Navbar = () => {
     },
     [pathname, navigate, goHome],
   );
+
+  const getInitials = (name: string | null) => {
+    if (!name) return "U";
+    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center px-8 mt-5">
@@ -108,13 +122,40 @@ const Navbar = () => {
               >
                 Dashboard
               </Link>
-              <button
-                onClick={async () => { await signOut(); navigate("/"); }}
-                className="flex items-center gap-1.5 px-5 py-2.5 text-base font-medium text-white/70 hover:text-white transition-colors rounded-full hover:bg-white/5"
-              >
-                <LogOut className="h-4 w-4" />
-                Logout
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary/50">
+                    <Avatar className="h-9 w-9 cursor-pointer border-2 border-white/20 hover:border-white/40 transition-colors">
+                      <AvatarImage src={user.photoURL || undefined} alt={user.displayName || "User"} />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
+                        {getInitials(user.displayName)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium">{user.displayName || "User"}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard" className="cursor-pointer">
+                      Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                    onClick={async () => { await signOut(); navigate("/"); }}
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           ) : (
             <>
