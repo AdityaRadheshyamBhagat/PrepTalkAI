@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Brain, ArrowUpRight } from "lucide-react";
+import { Brain, ArrowUpRight, LogOut } from "lucide-react";
 import { useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navLinks = [
   { label: "Home", to: "/", section: null },
@@ -12,6 +13,7 @@ const navLinks = [
 const Navbar = () => {
   const { pathname, hash } = useLocation();
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
 
   const goHome = useCallback(
     (e: React.MouseEvent) => {
@@ -98,19 +100,39 @@ const Navbar = () => {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <Link
-            to="/login"
-            className="flex items-center gap-0.5 px-5 py-2.5 text-base font-medium text-white/70 hover:text-white transition-colors rounded-full hover:bg-white/5"
-          >
-            Login
-            <ArrowUpRight className="h-3.5 w-3.5" />
-          </Link>
-          <Link
-            to="/signup"
-            className="rounded-full bg-white/90 px-5 py-2.5 text-base font-semibold text-gray-900 hover:bg-white transition-colors shadow-sm"
-          >
-            Get started
-          </Link>
+          {user ? (
+            <>
+              <Link
+                to="/dashboard"
+                className="rounded-full bg-white/90 px-5 py-2.5 text-base font-semibold text-gray-900 hover:bg-white transition-colors shadow-sm"
+              >
+                Dashboard
+              </Link>
+              <button
+                onClick={async () => { await signOut(); navigate("/"); }}
+                className="flex items-center gap-1.5 px-5 py-2.5 text-base font-medium text-white/70 hover:text-white transition-colors rounded-full hover:bg-white/5"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="flex items-center gap-0.5 px-5 py-2.5 text-base font-medium text-white/70 hover:text-white transition-colors rounded-full hover:bg-white/5"
+              >
+                Login
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </Link>
+              <Link
+                to="/signup"
+                className="rounded-full bg-white/90 px-5 py-2.5 text-base font-semibold text-gray-900 hover:bg-white transition-colors shadow-sm"
+              >
+                Get started
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </nav>
