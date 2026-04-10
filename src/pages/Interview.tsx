@@ -293,6 +293,13 @@ const Interview = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium">Voice Mode</label>
+                  <p className="text-xs text-muted-foreground">Speak answers & hear AI questions</p>
+                </div>
+                <Switch checked={voice.voiceEnabled} onCheckedChange={voice.setVoiceEnabled} />
+              </div>
               <Button className="w-full gradient-primary border-0" onClick={startInterview}>
                 <Mic className="mr-2 h-4 w-4" /> Start Interview
               </Button>
