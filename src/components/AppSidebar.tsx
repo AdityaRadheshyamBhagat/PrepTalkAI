@@ -15,6 +15,7 @@ import {
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "AI Interview", url: "/interview", icon: Mic },
+  { title: "Interview History", url: "/history", icon: History },
   { title: "Group Discussion", url: "/discussion", icon: Users },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
