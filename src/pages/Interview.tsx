@@ -112,6 +112,18 @@ const Interview = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  // Track the latest complete AI response for speaking
+  const latestAssistantRef = useRef("");
+
+  const handleVoiceTranscript = useCallback((text: string) => {
+    // When voice transcript is ready, send it as a message
+    sendMessageFromVoice(text);
+  }, []);
+
+  const voice = useVoice({
+    onTranscript: handleVoiceTranscript,
+  });
+
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
