@@ -128,6 +128,14 @@ const Interview = () => {
     pendingVoiceTextRef.current = "";
   }, []);
 
+  // Cleanup any pending auto-send on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
+      sonnerToast.dismiss("voice-autosend");
+    };
+  }, []);
+
   const queueVoiceAutoSend = useCallback((text: string) => {
     // Cancel any prior pending send and replace
     if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
