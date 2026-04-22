@@ -11,6 +11,8 @@ declare global {
 interface UseVoiceOptions {
   onTranscript?: (text: string) => void;
   lang?: string;
+  /** Auto-stop recording after this many ms of silence (no new speech). Set 0 to disable. */
+  silenceTimeoutMs?: number;
 }
 
 export function useVoice({ onTranscript, lang = "en-US" }: UseVoiceOptions = {}) {
