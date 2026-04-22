@@ -599,7 +599,6 @@ const Interview = () => {
                     Voice commands: <span className="font-mono text-foreground/70">"send now"</span> · <span className="font-mono text-foreground/70">"undo last"</span> · <span className="font-mono text-foreground/70">"repeat question"</span> · <span className="font-mono text-foreground/70">"end interview"</span>
                   </p>
                 )}
-                )}
                 <div className="flex items-end gap-3">
                   <Textarea
                     placeholder={voice.voiceEnabled ? "Speak or type your answer..." : "Type your answer..."}
