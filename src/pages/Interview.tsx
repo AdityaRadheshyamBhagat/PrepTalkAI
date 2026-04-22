@@ -594,6 +594,11 @@ const Interview = () => {
                       <span className="text-muted-foreground italic">Listening for your voice...</span>
                     )}
                   </div>
+                {voice.voiceEnabled && (
+                  <p className="text-[10px] text-muted-foreground/70 px-1">
+                    Voice commands: <span className="font-mono text-foreground/70">"send now"</span> · <span className="font-mono text-foreground/70">"undo last"</span> · <span className="font-mono text-foreground/70">"repeat question"</span> · <span className="font-mono text-foreground/70">"end interview"</span>
+                  </p>
+                )}
                 )}
                 <div className="flex items-end gap-3">
                   <Textarea
