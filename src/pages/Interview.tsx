@@ -118,20 +118,35 @@ const Interview = () => {
 
   const sendFromVoiceRef = useRef<((text: string) => void) | null>(null);
   const autoSendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSendTickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingVoiceTextRef = useRef<string>("");
+
+  const AUTO_SEND_MS = 4000;
+  // Live countdown state for the progress bar (null => no pending auto-send)
+  const [autoSendRemainingMs, setAutoSendRemainingMs] = useState<number | null>(null);
+
+  const clearAutoSendTicker = useCallback(() => {
+    if (autoSendTickerRef.current) {
+      clearInterval(autoSendTickerRef.current);
+      autoSendTickerRef.current = null;
+    }
+  }, []);
 
   const cancelPendingAutoSend = useCallback(() => {
     if (autoSendTimerRef.current) {
       clearTimeout(autoSendTimerRef.current);
       autoSendTimerRef.current = null;
     }
+    clearAutoSendTicker();
+    setAutoSendRemainingMs(null);
     pendingVoiceTextRef.current = "";
-  }, []);
+  }, [clearAutoSendTicker]);
 
   // Cleanup any pending auto-send on unmount
   useEffect(() => {
     return () => {
       if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
+      if (autoSendTickerRef.current) clearInterval(autoSendTickerRef.current);
       sonnerToast.dismiss("voice-autosend");
     };
   }, []);
@@ -139,12 +154,25 @@ const Interview = () => {
   const queueVoiceAutoSend = useCallback((text: string) => {
     // Cancel any prior pending send and replace
     if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
+    clearAutoSendTicker();
     pendingVoiceTextRef.current = text;
     setInput(text);
 
-    const AUTO_SEND_MS = 4000;
+    const startedAt = Date.now();
+    setAutoSendRemainingMs(AUTO_SEND_MS);
+
+    autoSendTickerRef.current = setInterval(() => {
+      const remaining = Math.max(0, AUTO_SEND_MS - (Date.now() - startedAt));
+      setAutoSendRemainingMs(remaining);
+      if (remaining <= 0) {
+        clearAutoSendTicker();
+      }
+    }, 60);
+
     autoSendTimerRef.current = setTimeout(() => {
       autoSendTimerRef.current = null;
+      clearAutoSendTicker();
+      setAutoSendRemainingMs(null);
       const toSend = pendingVoiceTextRef.current;
       pendingVoiceTextRef.current = "";
       if (toSend && sendFromVoiceRef.current) {
@@ -165,7 +193,7 @@ const Interview = () => {
         },
       },
     });
-  }, [cancelPendingAutoSend]);
+  }, [cancelPendingAutoSend, clearAutoSendTicker]);
 
   const lastAssistantRef = useRef<string>("");
   const endInterviewRef = useRef<(() => void) | null>(null);
@@ -538,6 +566,50 @@ const Interview = () => {
                 <Button variant="ghost" size="sm" onClick={voice.stopSpeaking} className="h-6 px-2">
                   <VolumeX className="h-3 w-3" />
                 </Button>
+              </div>
+            )}
+
+            {/* Auto-send countdown */}
+            {autoSendRemainingMs !== null && (
+              <div className="mb-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 animate-fade-in">
+                <div className="flex items-center justify-between gap-3 mb-1.5">
+                  <div className="flex items-center gap-2 text-xs font-medium text-primary">
+                    <Send className="h-3.5 w-3.5" />
+                    <span>Auto-sending in {(autoSendRemainingMs / 1000).toFixed(1)}s</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        cancelPendingAutoSend();
+                        sonnerToast.dismiss("voice-autosend");
+                      }}
+                    >
+                      Undo
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-6 px-2 text-xs gradient-primary border-0"
+                      onClick={() => {
+                        const pending = pendingVoiceTextRef.current || input;
+                        cancelPendingAutoSend();
+                        sonnerToast.dismiss("voice-autosend");
+                        if (pending.trim()) sendMessage(pending);
+                      }}
+                    >
+                      Send now
+                    </Button>
+                  </div>
+                </div>
+                <Progress
+                  value={(autoSendRemainingMs / AUTO_SEND_MS) * 100}
+                  className="h-1.5 bg-primary/10 [&>div]:bg-primary [&>div]:transition-none"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Say <span className="font-mono text-foreground/70">"undo last"</span> to cancel or <span className="font-mono text-foreground/70">"send now"</span> to send immediately
+                </p>
               </div>
             )}
 
