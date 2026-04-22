@@ -11,15 +11,26 @@ declare global {
 interface UseVoiceOptions {
   onTranscript?: (text: string) => void;
   lang?: string;
+  /** Auto-stop recording after this many ms of silence (no new speech). Set 0 to disable. */
+  silenceTimeoutMs?: number;
 }
 
-export function useVoice({ onTranscript, lang = "en-US" }: UseVoiceOptions = {}) {
+export function useVoice({ onTranscript, lang = "en-US", silenceTimeoutMs = 1800 }: UseVoiceOptions = {}) {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef(window.speechSynthesis);
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTranscriptRef = useRef<string>("");
+
+  const clearSilenceTimer = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+  }, []);
 
   const supportsRecognition = typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
   const supportsSynthesis = typeof window !== "undefined" && "speechSynthesis" in window;
@@ -68,6 +79,7 @@ export function useVoice({ onTranscript, lang = "en-US" }: UseVoiceOptions = {})
     recognition.continuous = true;
 
     let finalTranscript = "";
+    lastTranscriptRef.current = "";
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let interim = "";
@@ -79,19 +91,36 @@ export function useVoice({ onTranscript, lang = "en-US" }: UseVoiceOptions = {})
           interim += result[0].transcript;
         }
       }
-      setTranscript(finalTranscript + interim);
+      const combined = finalTranscript + interim;
+      setTranscript(combined);
+      lastTranscriptRef.current = combined;
+
+      // Reset silence timer on every new speech token
+      if (silenceTimeoutMs > 0) {
+        clearSilenceTimer();
+        silenceTimerRef.current = setTimeout(() => {
+          try {
+            recognition.stop();
+          } catch {
+            // ignore
+          }
+        }, silenceTimeoutMs);
+      }
     };
 
     recognition.onend = () => {
+      clearSilenceTimer();
       setIsListening(false);
-      if (finalTranscript.trim()) {
-        onTranscript?.(finalTranscript.trim());
+      const finalText = (finalTranscript || lastTranscriptRef.current).trim();
+      if (finalText) {
+        onTranscript?.(finalText);
       }
       setTranscript("");
     };
 
     recognition.onerror = (event) => {
       console.error("Speech recognition error:", event.error);
+      clearSilenceTimer();
       setIsListening(false);
       setTranscript("");
     };
@@ -99,12 +128,13 @@ export function useVoice({ onTranscript, lang = "en-US" }: UseVoiceOptions = {})
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
-  }, [supportsRecognition, voiceEnabled, lang, onTranscript, stopSpeaking]);
+  }, [supportsRecognition, voiceEnabled, lang, onTranscript, stopSpeaking, silenceTimeoutMs, clearSilenceTimer]);
 
   // Stop listening
   const stopListening = useCallback(() => {
+    clearSilenceTimer();
     recognitionRef.current?.stop();
-  }, []);
+  }, [clearSilenceTimer]);
 
   // Toggle listening
   const toggleListening = useCallback(() => {
@@ -118,10 +148,11 @@ export function useVoice({ onTranscript, lang = "en-US" }: UseVoiceOptions = {})
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      clearSilenceTimer();
       recognitionRef.current?.stop();
       synthRef.current.cancel();
     };
-  }, []);
+  }, [clearSilenceTimer]);
 
   return {
     isListening,

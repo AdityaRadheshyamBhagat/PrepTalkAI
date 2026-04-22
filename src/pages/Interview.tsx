@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Mic, MicOff, Send, Bot, User, CheckCircle, ArrowLeft, Loader2, Volume2, VolumeX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import { useVoice } from "@/hooks/useVoice";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -116,12 +117,59 @@ const Interview = () => {
   const { user } = useAuth();
 
   const sendFromVoiceRef = useRef<((text: string) => void) | null>(null);
+  const autoSendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingVoiceTextRef = useRef<string>("");
+
+  const cancelPendingAutoSend = useCallback(() => {
+    if (autoSendTimerRef.current) {
+      clearTimeout(autoSendTimerRef.current);
+      autoSendTimerRef.current = null;
+    }
+    pendingVoiceTextRef.current = "";
+  }, []);
+
+  // Cleanup any pending auto-send on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
+      sonnerToast.dismiss("voice-autosend");
+    };
+  }, []);
+
+  const queueVoiceAutoSend = useCallback((text: string) => {
+    // Cancel any prior pending send and replace
+    if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
+    pendingVoiceTextRef.current = text;
+    setInput(text);
+
+    const AUTO_SEND_MS = 4000;
+    autoSendTimerRef.current = setTimeout(() => {
+      autoSendTimerRef.current = null;
+      const toSend = pendingVoiceTextRef.current;
+      pendingVoiceTextRef.current = "";
+      if (toSend && sendFromVoiceRef.current) {
+        sendFromVoiceRef.current(toSend);
+      }
+      sonnerToast.dismiss("voice-autosend");
+    }, AUTO_SEND_MS);
+
+    sonnerToast("Sending in 4s…", {
+      id: "voice-autosend",
+      description: text.length > 80 ? text.slice(0, 80) + "…" : text,
+      duration: AUTO_SEND_MS,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          cancelPendingAutoSend();
+          // Keep text in input so user can edit/send manually
+        },
+      },
+    });
+  }, [cancelPendingAutoSend]);
 
   const voice = useVoice({
     onTranscript: (text: string) => {
-      if (sendFromVoiceRef.current) {
-        sendFromVoiceRef.current(text);
-      }
+      queueVoiceAutoSend(text);
     },
   });
 
@@ -165,7 +213,9 @@ const Interview = () => {
   const sendMessage = async (overrideText?: string) => {
     const text = (overrideText || input).trim();
     if (!text || isLoading) return;
-    if (!overrideText) setInput("");
+    // Always clear input when sending (covers voice-queued text shown in input)
+    setInput("");
+    cancelPendingAutoSend();
 
     const userMsg: Msg = { role: "user", content: text };
     const newMessages = [...messages, userMsg];
@@ -203,6 +253,8 @@ const Interview = () => {
 
   const endInterview = async () => {
     voice.stopSpeaking();
+    cancelPendingAutoSend();
+    sonnerToast.dismiss("voice-autosend");
     if (messages.length < 2) {
       setPhase("setup");
       return;
