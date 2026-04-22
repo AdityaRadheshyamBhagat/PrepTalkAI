@@ -205,7 +205,9 @@ const Interview = () => {
   const sendMessage = async (overrideText?: string) => {
     const text = (overrideText || input).trim();
     if (!text || isLoading) return;
-    if (!overrideText) setInput("");
+    // Always clear input when sending (covers voice-queued text shown in input)
+    setInput("");
+    cancelPendingAutoSend();
 
     const userMsg: Msg = { role: "user", content: text };
     const newMessages = [...messages, userMsg];
