@@ -414,14 +414,6 @@ const Interview = () => {
         {/* Bottom controls — voice-centric */}
         <div className="border-t border-border/50 bg-card/80 backdrop-blur-sm px-6 py-4">
           <div className="max-w-2xl mx-auto">
-            {/* Voice transcript indicator */}
-            {voice.voiceEnabled && voice.isListening && voice.transcript && (
-              <div className="bg-primary/10 rounded-lg p-2.5 mb-3 text-sm flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
-                <span className="text-foreground">{voice.transcript}</span>
-              </div>
-            )}
-
             {/* Speaking indicator */}
             {voice.isSpeaking && (
               <div className="flex items-center justify-center gap-2 mb-3 text-sm text-muted-foreground">
@@ -433,56 +425,80 @@ const Interview = () => {
               </div>
             )}
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-end gap-3">
               {voice.voiceEnabled && (
-                <div className="relative shrink-0 h-12 w-12 flex items-center justify-center">
+                <div className="shrink-0 flex flex-col items-center gap-2">
+                  <div className="relative h-12 w-12 flex items-center justify-center">
+                    {voice.isListening && (
+                      <>
+                        <span className="absolute inset-0 rounded-full bg-destructive/20 animate-ping" />
+                        <span className="absolute inset-0 rounded-full bg-destructive/15 animate-ping [animation-delay:300ms] [animation-duration:1.6s]" />
+                        <span className="absolute -inset-1 rounded-full bg-destructive/10 animate-ping [animation-delay:600ms] [animation-duration:2s]" />
+                        <div className="absolute -inset-3 flex items-center justify-around pointer-events-none">
+                          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+                            <span
+                              key={i}
+                              className="w-0.5 rounded-full bg-destructive/70 animate-soundwave"
+                              style={{
+                                animationDelay: `${i * 90}ms`,
+                                animationDuration: `${700 + (i % 3) * 150}ms`,
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                    <Button
+                      size="icon"
+                      variant={voice.isListening ? "destructive" : "secondary"}
+                      className={`relative z-10 h-12 w-12 rounded-full transition-all ${voice.isListening ? "ring-4 ring-destructive/40 shadow-lg shadow-destructive/30" : ""}`}
+                      onClick={voice.toggleListening}
+                      disabled={isLoading}
+                    >
+                      {voice.isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                    </Button>
+                  </div>
                   {voice.isListening && (
-                    <>
-                      <span className="absolute inset-0 rounded-full bg-destructive/20 animate-ping" />
-                      <span className="absolute inset-0 rounded-full bg-destructive/15 animate-ping [animation-delay:300ms] [animation-duration:1.6s]" />
-                      <span className="absolute -inset-1 rounded-full bg-destructive/10 animate-ping [animation-delay:600ms] [animation-duration:2s]" />
-                      <div className="absolute -inset-3 flex items-center justify-around pointer-events-none">
-                        {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-                          <span
-                            key={i}
-                            className="w-0.5 rounded-full bg-destructive/70 animate-soundwave"
-                            style={{
-                              animationDelay: `${i * 90}ms`,
-                              animationDuration: `${700 + (i % 3) * 150}ms`,
-                            }}
-                          />
-                        ))}
-                      </div>
-                    </>
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-destructive flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-destructive animate-pulse" />
+                      Listening
+                    </span>
                   )}
-                  <Button
-                    size="icon"
-                    variant={voice.isListening ? "destructive" : "secondary"}
-                    className={`relative z-10 h-12 w-12 rounded-full transition-all ${voice.isListening ? "ring-4 ring-destructive/40 shadow-lg shadow-destructive/30" : ""}`}
-                    onClick={voice.toggleListening}
-                    disabled={isLoading}
-                  >
-                    {voice.isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-                  </Button>
                 </div>
               )}
-              <Textarea
-                placeholder={voice.voiceEnabled ? "Speak or type your answer..." : "Type your answer..."}
-                className="resize-none rounded-xl min-h-[48px]"
-                rows={1}
-                value={voice.isListening ? voice.transcript : input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={isLoading || voice.isListening}
-              />
-              <Button
-                size="icon"
-                className="gradient-primary border-0 shrink-0 h-12 w-12 rounded-full"
-                onClick={() => sendMessage()}
-                disabled={isLoading || !input.trim()}
-              >
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-              </Button>
+              <div className="flex-1 flex flex-col gap-2">
+                {voice.voiceEnabled && voice.isListening && (
+                  <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm min-h-[40px] flex items-center animate-fade-in">
+                    {voice.transcript ? (
+                      <span className="text-foreground leading-snug">
+                        {voice.transcript}
+                        <span className="inline-block w-0.5 h-4 ml-0.5 bg-destructive align-middle animate-pulse" />
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground italic">Listening for your voice...</span>
+                    )}
+                  </div>
+                )}
+                <div className="flex items-end gap-3">
+                  <Textarea
+                    placeholder={voice.voiceEnabled ? "Speak or type your answer..." : "Type your answer..."}
+                    className="resize-none rounded-xl min-h-[48px] flex-1"
+                    rows={1}
+                    value={voice.isListening ? voice.transcript : input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    disabled={isLoading || voice.isListening}
+                  />
+                  <Button
+                    size="icon"
+                    className="gradient-primary border-0 shrink-0 h-12 w-12 rounded-full"
+                    onClick={() => sendMessage()}
+                    disabled={isLoading || !input.trim()}
+                  >
+                    {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
