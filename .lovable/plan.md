@@ -1,65 +1,79 @@
 
 
-# AI Interview Backend Implementation Plan
+# Group Discussion Module — Build Plan
 
-## Overview
-Replace the mock interview chat with a real AI-powered interviewer using **Lovable AI Gateway** (already available via `LOVABLE_API_KEY`). The AI will ask contextual interview questions, respond to user answers, and generate structured feedback when the interview ends.
+An AI-simulated panel discussion where you join a room with 3 distinct AI personas debating a topic. Each persona has its own voice, opinions, and speaking style. You contribute via voice or text; the AI panelists respond in character. At the end you get a lightweight AI summary of your performance.
 
-## Architecture
+## User flow
 
 ```text
-┌─────────────┐       ┌──────────────────────┐       ┌────────────────────┐
-│  Interview   │──────▶│  Edge Function:       │──────▶│  Lovable AI        │
-│  Page (React)│◀──────│  interview-chat       │◀──────│  Gateway (Gemini)  │
-│              │       │  (streaming SSE)      │       │                    │
-│              │──────▶│  Edge Function:       │──────▶│                    │
-│              │◀──────│  interview-feedback   │◀──────│                    │
-└─────────────┘       └──────────────────────┘       └────────────────────┘
+Setup ──▶ Topic generation ──▶ Live discussion room ──▶ Wrap-up summary
+  │            │                     │                       │
+  pick      AI generates a        moderator opens,        AI summarizes
+  category, fresh topic +         panelists debate,       your contributions
+  difficulty, opening prompt      you jump in anytime     (no scoring)
+  3 personas
 ```
 
-## What Gets Built
+## Screens
 
-### 1. Edge Function: `interview-chat`
-- Receives the full conversation history + interview config (type, difficulty, role)
-- System prompt instructs the AI to act as an interviewer for the selected type/difficulty/role
-- Streams responses back via SSE for real-time token rendering
-- Handles CORS, rate limit errors (429), and credit errors (402)
+**1. Setup screen** (replaces current mock browser)
+- Category dropdown: Technology, Business, Society, Ethics, Career, Current Affairs
+- Difficulty: Beginner / Intermediate / Advanced
+- Persona pack selector: "Balanced panel", "Debate-heavy", "Devil's advocate" (each preset picks 3 personas with names, roles, viewpoints, and assigned voices)
+- "AI voices on/off" toggle (default on)
+- Big "Generate topic & start" button
 
-### 2. Edge Function: `interview-feedback`
-- Receives the complete conversation when user clicks "End Interview"
-- Uses structured output (tool calling) to extract scores and tips in a defined JSON schema:
-  - Overall score, category scores (Communication, Technical Knowledge, Problem Solving, Confidence)
-  - 3-5 actionable improvement tips
-- Returns structured JSON (non-streaming)
+**2. Live discussion room**
+- Top bar: topic title, elapsed timer, leave button
+- Center: 4 avatar tiles in a row — Moderator + 3 Panelists + You
+  - Active speaker tile gets a glowing ring + soundwave bars (reuses the visualizer we built for Interview)
+  - Each panelist shows name + one-line role ("Tech Optimist", "Cautious Economist", etc.)
+- Below avatars: live transcript feed (last 4-6 turns) with persona name + message, auto-scrolling
+- Bottom controls (reuses Interview voice infra):
+  - Mic button with soundwave ring
+  - Live STT transcript pill
+  - Auto-send countdown w/ Undo + "Send now"
+  - Voice commands: "raise hand" (queue your turn), "send now", "undo last", "leave room"
+  - "Raise hand" button — pauses panelists at next natural break so you get the floor
+  - End discussion button
 
-### 3. Updated Interview Page (`src/pages/Interview.tsx`)
-- **Setup phase**: Track selected values (type, difficulty, role) in state
-- **Interview phase**:
-  - On start, send initial message to get AI's first question (streamed)
-  - User types response, sends it, AI responds with next question (streamed, token-by-token)
-  - Messages render with markdown support via `react-markdown`
-  - Loading indicator while AI is responding
-  - Auto-scroll to latest message
-- **Feedback phase**:
-  - On "End Interview", call `interview-feedback` with full conversation
-  - Display real AI-generated scores and tips (replacing mock data)
-  - Loading state while feedback is being generated
+**3. Wrap-up screen**
+- Single card: short AI summary paragraph of what you contributed, 2-3 strengths, 2-3 things to try next time
+- "Start another" + "Back to dashboard" buttons
+- No scoring, no persistence (per your choice)
 
-### 4. Supabase Config
-- `supabase/config.toml` with both functions configured
+## Technical implementation
 
-## Key Details
+**Edge functions** (new):
 
-- **Model**: `google/gemini-3-flash-preview` (fast, good for conversational interviews)
-- **Streaming**: SSE-based streaming for the chat, non-streaming for feedback
-- **No database needed**: Conversation lives in React state for the session
-- **Dependencies**: Add `react-markdown` for rendering AI responses with formatting
-- **System prompt** crafted per interview type (technical asks coding/system design questions, behavioral uses STAR method, HR asks culture-fit questions)
+1. `discussion-topic` — POST `{ category, difficulty, personaPack }` → returns `{ topic, openingPrompt, personas: [{id, name, role, viewpoint, voiceHint}] }`. Single non-streaming Gemini call with structured output (tool calling).
 
-## Files to Create/Edit
-1. `supabase/config.toml` — function config
-2. `supabase/functions/interview-chat/index.ts` — streaming chat edge function
-3. `supabase/functions/interview-feedback/index.ts` — feedback generation edge function
-4. `src/pages/Interview.tsx` — full rewrite with real AI integration
-5. `package.json` — add `react-markdown`
+2. `discussion-turn` — POST `{ topic, personas, history, nextSpeakerId }` → streams (SSE) the next speaker's message. System prompt instructs the AI to respond AS the named persona, staying in character, ~2-4 sentences, reacting to the last turn. Same SSE pattern as `interview-chat`. Handles 429/402.
+
+3. `discussion-summary` — POST `{ topic, personas, history }` → returns `{ summary, strengths[], improvements[] }` via tool calling. Mirrors `interview-feedback`.
+
+**Client (`src/pages/Discussion.tsx` — full rewrite):**
+- State machine: `setup` → `live` → `summary`
+- Turn orchestrator: a queue + timer that picks the next panelist (round-robin with light randomness, skipping recent speakers). When the user raises their hand or types/speaks, their turn is inserted next; the orchestrator pauses outgoing AI turns until the user submits.
+- Reuses `useVoice` hook for STT and TTS
+- Voice mapping: pick a different `SpeechSynthesisVoice` per persona by filtering `window.speechSynthesis.getVoices()` (e.g., male/female + locale variation). Falls back to default voice if browser voice list is small.
+- Soundwave + auto-send + voice-command UI all extracted from the Interview page so both modules share the look.
+
+**Sidebar:** Group Discussion link already exists at `/discussion` — no nav changes needed.
+
+**Database:** None. Per your choice, sessions are not persisted.
+
+## Files to add / change
+- `supabase/functions/discussion-topic/index.ts` (new)
+- `supabase/functions/discussion-turn/index.ts` (new)
+- `supabase/functions/discussion-summary/index.ts` (new)
+- `supabase/config.toml` (register the 3 functions)
+- `src/pages/Discussion.tsx` (full rewrite)
+- Optional: extract shared voice-control bar into `src/components/VoiceControlBar.tsx` if it keeps Discussion.tsx tidy
+
+## Out of scope (can do later)
+- Real multi-user rooms over WebRTC
+- Scored feedback + history persistence
+- Discussion analytics on the dashboard
 
