@@ -287,15 +287,25 @@ const Discussion = () => {
   }, []);
 
   const speakAsPersona = useCallback(
-    (text: string, persona?: Persona) => {
-      if (!voicesOn || !supportsSynthesis) return;
-      const voice = persona && voiceMapRef.current ? voiceMapRef.current[persona.voiceHint] : null;
+    (text: string, persona: Persona | undefined, onDone?: () => void) => {
       const clean = text.replace(/[*_~`#>]/g, "").trim();
-      if (!clean) return;
+      if (!voicesOn || !supportsSynthesis || !clean) {
+        onDone?.();
+        return;
+      }
+      const voice = persona && voiceMapRef.current ? voiceMapRef.current[persona.voiceHint] : null;
       const u = new SpeechSynthesisUtterance(clean);
       if (voice) u.voice = voice;
       u.rate = 1.05;
       u.pitch = persona?.voiceHint.startsWith("female") ? 1.1 : 0.95;
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        onDone?.();
+      };
+      u.onend = finish;
+      u.onerror = finish;
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(u);
     },
