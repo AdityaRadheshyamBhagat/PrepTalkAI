@@ -287,15 +287,25 @@ const Discussion = () => {
   }, []);
 
   const speakAsPersona = useCallback(
-    (text: string, persona?: Persona) => {
-      if (!voicesOn || !supportsSynthesis) return;
-      const voice = persona && voiceMapRef.current ? voiceMapRef.current[persona.voiceHint] : null;
+    (text: string, persona: Persona | undefined, onDone?: () => void) => {
       const clean = text.replace(/[*_~`#>]/g, "").trim();
-      if (!clean) return;
+      if (!voicesOn || !supportsSynthesis || !clean) {
+        onDone?.();
+        return;
+      }
+      const voice = persona && voiceMapRef.current ? voiceMapRef.current[persona.voiceHint] : null;
       const u = new SpeechSynthesisUtterance(clean);
       if (voice) u.voice = voice;
       u.rate = 1.05;
       u.pitch = persona?.voiceHint.startsWith("female") ? 1.1 : 0.95;
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        onDone?.();
+      };
+      u.onend = finish;
+      u.onerror = finish;
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(u);
     },
@@ -384,16 +394,25 @@ const Discussion = () => {
       },
       onDone: () => {
         const finalText = acc.trim();
+        const release = () => {
+          setNextQueue((q) => (q[0] === next ? q.slice(1) : q));
+          // small natural delay before next speaker
+          setTimeout(() => {
+            turnLoopActiveRef.current = false;
+            setActiveSpeakerId(null);
+          }, 600);
+        };
         if (finalText) {
           setHistory((h) => [...h, { speakerId: next, speakerName, text: finalText }]);
-          speakAsPersona(finalText, persona);
+          // Wait for this speaker to finish talking before releasing the floor
+          if (voicesOn && supportsSynthesis) {
+            speakAsPersona(finalText, persona, release);
+          } else {
+            release();
+          }
+        } else {
+          release();
         }
-        setNextQueue((q) => (q[0] === next ? q.slice(1) : q));
-        // small natural delay before next speaker
-        setTimeout(() => {
-          turnLoopActiveRef.current = false;
-          setActiveSpeakerId(null);
-        }, 800);
       },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
