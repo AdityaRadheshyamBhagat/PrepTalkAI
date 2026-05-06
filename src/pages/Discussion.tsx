@@ -72,24 +72,6 @@ const PERSONA_PACKS = [
 
 const AUTO_SEND_MS = 4000;
 
-// ─────────────────────────────────────────────────────────
-// Voice mapping
-// ─────────────────────────────────────────────────────────
-function pickVoicesForHints(): Record<Persona["voiceHint"], SpeechSynthesisVoice | null> {
-  if (typeof window === "undefined" || !window.speechSynthesis) {
-    return { "male-1": null, "male-2": null, "female-1": null, "female-2": null };
-  }
-  const voices = window.speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
-  const male = voices.filter((v) => /male|david|alex|fred|daniel|google uk english male/i.test(v.name) && !/female/i.test(v.name));
-  const female = voices.filter((v) => /female|samantha|victoria|karen|susan|zira|google uk english female/i.test(v.name));
-  const fallback = voices[0] || null;
-  return {
-    "male-1": male[0] || voices[1] || fallback,
-    "male-2": male[1] || male[0] || voices[2] || fallback,
-    "female-1": female[0] || voices[0] || fallback,
-    "female-2": female[1] || female[0] || voices[3] || fallback,
-  };
-}
 
 // ─────────────────────────────────────────────────────────
 // Streaming helper (same SSE pattern as Interview)
