@@ -1,79 +1,69 @@
+## Goal
+Replace the browser's robotic Web Speech TTS with ElevenLabs' human-like voices for both the AI Interview and Group Discussion modules, so each AI panelist / interviewer sounds natural and distinct.
 
+## Approach
 
-# Group Discussion Module — Build Plan
-
-An AI-simulated panel discussion where you join a room with 3 distinct AI personas debating a topic. Each persona has its own voice, opinions, and speaking style. You contribute via voice or text; the AI panelists respond in character. At the end you get a lightweight AI summary of your performance.
-
-## User flow
+Use the ElevenLabs connector (gateway-enabled, no manual API key handling). When you approve, you'll be prompted to link your ElevenLabs account in one click — no copy/pasting keys.
 
 ```text
-Setup ──▶ Topic generation ──▶ Live discussion room ──▶ Wrap-up summary
-  │            │                     │                       │
-  pick      AI generates a        moderator opens,        AI summarizes
-  category, fresh topic +         panelists debate,       your contributions
-  difficulty, opening prompt      you jump in anytime     (no scoring)
-  3 personas
+Browser ──▶ Edge function `tts-speak` ──▶ ElevenLabs gateway ──▶ MP3 audio ──▶ HTMLAudioElement
 ```
 
-## Screens
+## What changes
 
-**1. Setup screen** (replaces current mock browser)
-- Category dropdown: Technology, Business, Society, Ethics, Career, Current Affairs
-- Difficulty: Beginner / Intermediate / Advanced
-- Persona pack selector: "Balanced panel", "Debate-heavy", "Devil's advocate" (each preset picks 3 personas with names, roles, viewpoints, and assigned voices)
-- "AI voices on/off" toggle (default on)
-- Big "Generate topic & start" button
+### 1. New edge function: `supabase/functions/tts-speak/index.ts`
+- Input: `{ text, voiceId, modelId? }`
+- Streams MP3 from `https://api.elevenlabs.io/v1/text-to-speech/{voiceId}/stream?output_format=mp3_44100_128` via the connector gateway
+- Uses `eleven_turbo_v2_5` model (low latency, good for back-and-forth speech)
+- Returns raw `audio/mpeg` bytes (streaming) so playback can start fast
+- Validates input with Zod, returns proper CORS headers
 
-**2. Live discussion room**
-- Top bar: topic title, elapsed timer, leave button
-- Center: 4 avatar tiles in a row — Moderator + 3 Panelists + You
-  - Active speaker tile gets a glowing ring + soundwave bars (reuses the visualizer we built for Interview)
-  - Each panelist shows name + one-line role ("Tech Optimist", "Cautious Economist", etc.)
-- Below avatars: live transcript feed (last 4-6 turns) with persona name + message, auto-scrolling
-- Bottom controls (reuses Interview voice infra):
-  - Mic button with soundwave ring
-  - Live STT transcript pill
-  - Auto-send countdown w/ Undo + "Send now"
-  - Voice commands: "raise hand" (queue your turn), "send now", "undo last", "leave room"
-  - "Raise hand" button — pauses panelists at next natural break so you get the floor
-  - End discussion button
+### 2. New client hook: `src/hooks/useElevenLabsVoice.ts`
+- `speak(text, voiceId, { onDone, onStart })` — fetches the edge function, plays MP3 via `new Audio(URL.createObjectURL(blob))`
+- `cancel()` — pauses + revokes current audio (used when user raises hand / interrupts)
+- `isSpeaking` state
+- Maintains a single active `Audio` element so only one voice plays at a time
+- Falls back gracefully if the edge function errors (toast + no audio)
 
-**3. Wrap-up screen**
-- Single card: short AI summary paragraph of what you contributed, 2-3 strengths, 2-3 things to try next time
-- "Start another" + "Back to dashboard" buttons
-- No scoring, no persistence (per your choice)
+### 3. Voice mapping
+Pre-pick 5 distinct ElevenLabs voice IDs from the recommended list and map them by role:
 
-## Technical implementation
+| Role | Voice | ID |
+|---|---|---|
+| Interview AI | George (warm male interviewer) | `JBFqnCBsd6RMkjVDRZzb` |
+| Moderator | Sarah (clear female host) | `EXAVITQu4vr4xnSDxMaL` |
+| Panelist `male-1` | Brian | `nPczCjzI2devNBz1zQrb` |
+| Panelist `male-2` | Liam | `TX3LPaxmHKxFdv7VOQHJ` |
+| Panelist `female-1` | Laura | `FGY2WhTYpPnrIDTdsKH5` |
+| Panelist `female-2` | Matilda | `XrExE9yKIg1WjnnlVkGX` |
 
-**Edge functions** (new):
+Each persona's existing `voiceHint` already maps to one of these slots — no AI prompt changes needed.
 
-1. `discussion-topic` — POST `{ category, difficulty, personaPack }` → returns `{ topic, openingPrompt, personas: [{id, name, role, viewpoint, voiceHint}] }`. Single non-streaming Gemini call with structured output (tool calling).
+### 4. Wire into existing pages
+- **`src/pages/Discussion.tsx`** — replace `speakAsPersona` (Web Speech) with `useElevenLabsVoice().speak(text, voiceIdFor(persona), { onDone })`. Keep the existing turn-gating (next speaker waits for `onDone`) and "raise hand" interrupt (calls `cancel()`).
+- **`src/pages/Interview.tsx`** — replace `useVoice().speak` calls for the interviewer's text with the ElevenLabs hook (Interview voice ID).
+- Keep `useVoice` for **STT only** (mic input). The browser's SpeechRecognition stays — only TTS is replaced.
 
-2. `discussion-turn` — POST `{ topic, personas, history, nextSpeakerId }` → streams (SSE) the next speaker's message. System prompt instructs the AI to respond AS the named persona, staying in character, ~2-4 sentences, reacting to the last turn. Same SSE pattern as `interview-chat`. Handles 429/402.
+### 5. UI
+- "AI voices" toggle keeps working; when off, skip the edge function call.
+- Add a small "Powered by ElevenLabs" line in the voice settings area.
+- Show a subtle loading state on the active speaker tile while the first audio chunk is fetched (~300-600 ms).
 
-3. `discussion-summary` — POST `{ topic, personas, history }` → returns `{ summary, strengths[], improvements[] }` via tool calling. Mirrors `interview-feedback`.
+## Files
 
-**Client (`src/pages/Discussion.tsx` — full rewrite):**
-- State machine: `setup` → `live` → `summary`
-- Turn orchestrator: a queue + timer that picks the next panelist (round-robin with light randomness, skipping recent speakers). When the user raises their hand or types/speaks, their turn is inserted next; the orchestrator pauses outgoing AI turns until the user submits.
-- Reuses `useVoice` hook for STT and TTS
-- Voice mapping: pick a different `SpeechSynthesisVoice` per persona by filtering `window.speechSynthesis.getVoices()` (e.g., male/female + locale variation). Falls back to default voice if browser voice list is small.
-- Soundwave + auto-send + voice-command UI all extracted from the Interview page so both modules share the look.
+**New**
+- `supabase/functions/tts-speak/index.ts`
+- `src/hooks/useElevenLabsVoice.ts`
+- `src/lib/voiceMap.ts` (the voice-id table)
 
-**Sidebar:** Group Discussion link already exists at `/discussion` — no nav changes needed.
+**Edited**
+- `src/pages/Discussion.tsx` (swap TTS, keep turn lock)
+- `src/pages/Interview.tsx` (swap TTS for interviewer lines)
 
-**Database:** None. Per your choice, sessions are not persisted.
+## Setup step (once)
+On approval, the connector tool prompts you to link ElevenLabs. After that the gateway secret `ELEVENLABS_API_KEY` is auto-injected into edge functions — nothing for you to paste.
 
-## Files to add / change
-- `supabase/functions/discussion-topic/index.ts` (new)
-- `supabase/functions/discussion-turn/index.ts` (new)
-- `supabase/functions/discussion-summary/index.ts` (new)
-- `supabase/config.toml` (register the 3 functions)
-- `src/pages/Discussion.tsx` (full rewrite)
-- Optional: extract shared voice-control bar into `src/components/VoiceControlBar.tsx` if it keeps Discussion.tsx tidy
-
-## Out of scope (can do later)
-- Real multi-user rooms over WebRTC
-- Scored feedback + history persistence
-- Discussion analytics on the dashboard
-
+## Out of scope
+- Streaming WebSocket TTS (low-latency duplex) — overkill for this turn-based flow
+- Voice cloning / custom voices
+- Server-side audio caching (can add later if quota becomes a concern)
