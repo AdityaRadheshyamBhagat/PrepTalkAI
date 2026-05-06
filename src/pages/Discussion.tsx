@@ -301,7 +301,7 @@ const Discussion = () => {
       setHistory([]);
       setElapsed(0);
       setNextQueue(["moderator", ...data.personas.map((p) => p.id)]);
-      setVoiceEnabled(voicesOn);
+      setVoiceEnabled(true);
       setPhase("live");
     } catch (e: any) {
       toast({ title: "Error", description: e?.message || "Unknown", variant: "destructive" });
