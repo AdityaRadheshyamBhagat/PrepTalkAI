@@ -11,6 +11,8 @@ import { Mic, MicOff, Send, Bot, User, CheckCircle, ArrowLeft, Loader2, Volume2,
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { useVoice } from "@/hooks/useVoice";
+import { useElevenLabsVoice } from "@/hooks/useElevenLabsVoice";
+import { ELEVENLABS_VOICES } from "@/lib/voiceMap";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
