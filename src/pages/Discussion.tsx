@@ -213,27 +213,27 @@ const Discussion = () => {
   const autoSendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoSendTickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── Voice hook ────────────────────────────────────────
+  // ── Voice hook (STT only — TTS uses ElevenLabs) ──────
   const {
     isListening,
-    isSpeaking,
     transcript,
-    voiceEnabled,
     setVoiceEnabled,
-    speak,
-    stopSpeaking,
     toggleListening,
     supportsRecognition,
-    supportsSynthesis,
   } = useVoice({
     silenceTimeoutMs: 1800,
     onTranscript: (text) => handleVoiceTranscript(text),
   });
 
-  // Keep voiceEnabled in sync with voicesOn after start
+  const tts = useElevenLabsVoice();
+  const isSpeaking = tts.isSpeaking;
+  const supportsSynthesis = true; // ElevenLabs handles TTS server-side
+  const stopSpeaking = tts.cancel;
+
+  // STT mic stays enabled regardless of AI-voice toggle
   useEffect(() => {
-    setVoiceEnabled(voicesOn);
-  }, [voicesOn, setVoiceEnabled]);
+    setVoiceEnabled(true);
+  }, [setVoiceEnabled]);
 
   // Load voices once
   useEffect(() => {
