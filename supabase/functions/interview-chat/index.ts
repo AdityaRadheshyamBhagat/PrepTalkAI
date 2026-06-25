@@ -44,7 +44,13 @@ serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
 
-    const systemPrompt = buildSystemPrompt(type, difficulty, role);
+const systemPrompt = buildSystemPrompt(type, difficulty, role);
+
+    // Gemini's OpenAI-compatible endpoint requires at least one non-system message.
+    // On the very first call (no history yet), synthesize a kickoff message.
+    const chatMessages = messages && messages.length > 0
+      ? messages
+      : [{ role: "user", content: "Let's begin the interview." }];
 
     const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
@@ -56,7 +62,7 @@ serve(async (req) => {
         model: "gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          ...messages,
+          ...chatMessages,
         ],
         stream: true,
       }),
