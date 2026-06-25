@@ -14,6 +14,7 @@ import Interview from "./pages/Interview";
 import Discussion from "./pages/Discussion";
 import InterviewHistory from "./pages/InterviewHistory";
 import About from "./pages/About";
+import Settings from "./pages/Settings"; // <-- 1. Imported Settings here
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,10 @@ const AnimatedRoutes = () => {
         <Route path="/discussion" element={<PageTransition><Discussion /></PageTransition>} />
         <Route path="/history" element={<PageTransition><InterviewHistory /></PageTransition>} />
         <Route path="/about" element={<PageTransition><About /></PageTransition>} />
+        
+        {/* <-- 2. Added the Settings route here (must be ABOVE the * route) */}
+        <Route path="/settings" element={<PageTransition><Settings /></PageTransition>} />
+        
         <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
       </Routes>
     </AnimatePresence>
